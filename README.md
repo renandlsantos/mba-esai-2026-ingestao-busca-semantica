@@ -1,155 +1,109 @@
-# Ingestão e Busca Semântica com LangChain e Postgres
+# MBA ESAI 2026 — Ingestão e busca semântica
 
-## Objetivo
+Implementação da fase 293: PDF → chunks → embeddings → PostgreSQL/pgVector → perguntas no terminal com LangChain.
 
-Você deve entregar um software capaz de:
+**Estado:** código implementado e testes locais/banco validados. A avaliação com OpenAI real ainda depende de chave configurada pelo operador. Não foi submetido à plataforma. O desenvolvimento está na branch `feature/sdd-fase-293`.
 
-- Ingestão: Ler um arquivo PDF e salvar suas informações em um banco de dados PostgreSQL com extensão pgVector.
-- Busca: Permitir que o usuário faça perguntas via linha de comando (CLI) e receba respostas baseadas apenas no conteúdo do PDF.
+## Processo SDD
 
-## Exemplo no CLI
+Spec Kit oficial 1.0.8: [constituição](.specify/memory/constitution.md) → [especificação](specs/001-pdf-rag/spec.md) → [plano](specs/001-pdf-rag/plan.md) → [tarefas](specs/001-pdf-rag/tasks.md) → implementação → convergência. [Rastreabilidade](docs/RASTREABILIDADE.md), [referências de aulas](docs/REFERENCIAS.md) e [evidências de validação](docs/VALIDACAO.md).
 
-Faça sua pergunta:
+Para retomar o workflow em um clone novo, selecione explicitamente a feature:
 
-```
-PERGUNTA: Qual o faturamento da Empresa SuperTechIABrazil?
-RESPOSTA: O faturamento foi de 10 milhões de reais.
-
----
-
-Perguntas fora do contexto:
-
-PERGUNTA: Quantos clientes temos em 2024?
-RESPOSTA: Não tenho informações necessárias para responder sua pergunta.
+```bash
+export SPECIFY_FEATURE_DIRECTORY=specs/001-pdf-rag
+.specify/scripts/bash/check-prerequisites.sh --json --require-spec --require-tasks --include-tasks
 ```
 
-## Tecnologias obrigatórias
-
-- Linguagem: Python
-- Framework: LangChain
-- Banco de dados: PostgreSQL + pgVector
-- Execução do banco de dados: Docker & Docker Compose (docker-compose fornecido no repositório de exemplo)
-
-## Pacotes recomendados
-
-- Split: `from langchain_text_splitters import RecursiveCharacterTextSplitter`
-- Embeddings (OpenAI): `from langchain_openai import OpenAIEmbeddings`
-- Embeddings (Gemini): `from langchain_google_genai import GoogleGenerativeAIEmbeddings`
-- PDF: `from langchain_community.document_loaders import PyPDFLoader`
-- Ingestão: `from langchain_postgres import PGVector`
-- Busca: `similarity_search_with_score(query, k=10)`
-
-## OpenAI
-
-- Crie uma API Key da OpenAI.
-- Você vai precisar de um modelo de embeddings e de um modelo de LLM para responder. Consulte a documentação oficial da OpenAI para ver os modelos disponíveis.
-
-## Gemini
-
-- Crie uma API Key da Google.
-- Você vai precisar de um modelo de embeddings e de um modelo de LLM para responder. Consulte a documentação oficial do Google para ver os modelos disponíveis.
-
-Os limites de requisições gratuitas dos modelos podem mudar com frequência. Para informações atualizadas, consulte a documentação oficial do Google.
-
-## Escolha dos modelos
-
-Este desafio não fixa modelos. Nomes e versões mudam com frequência e alguns são descontinuados, então faz parte do desafio consultar a documentação oficial do provedor que você escolher, ver quais modelos estão disponíveis no momento e selecionar os que atendem ao objetivo. Para o volume deste desafio, os modelos mais leves e baratos de cada provedor são suficientes.
-
-Atenção: modelos de embedding diferentes geram vetores com dimensões diferentes. A tabela de vetores é criada na primeira ingestão, já com a dimensão do modelo que você escolheu. Se você trocar de modelo de embeddings depois disso, a ingestão passa a falhar por incompatibilidade de dimensão. Nesse caso é responsabilidade sua apagar a collection existente (ou o volume do banco) e refazer a ingestão do zero com o novo modelo.
-
-## Requisitos
-
-### 1. Ingestão do PDF
-
-- O PDF deve ser dividido em chunks de 1000 caracteres com overlap de 150.
-- Cada chunk deve ser convertido em embedding.
-- Os vetores devem ser armazenados no banco de dados PostgreSQL com pgVector.
-
-### 2. Consulta via CLI
-
-Criar um script Python para simular um chat no terminal.
-
-Passos ao receber uma pergunta:
-
-- Vetorizar a pergunta.
-- Buscar os 10 resultados mais relevantes (k=10) no banco vetorial.
-- Montar o prompt e chamar a LLM.
-- Retornar a resposta ao usuário.
-
-Prompt a ser utilizado:
-
-```
-CONTEXTO:
-{resultados concatenados do banco de dados}
-
-REGRAS:
-- Responda somente com base no CONTEXTO.
-- Se a informação não estiver explicitamente no CONTEXTO, responda:
-  "Não tenho informações necessárias para responder sua pergunta."
-- Nunca invente ou use conhecimento externo.
-- Nunca produza opiniões ou interpretações além do que está escrito.
-
-EXEMPLOS DE PERGUNTAS FORA DO CONTEXTO:
-Pergunta: "Qual é a capital da França?"
-Resposta: "Não tenho informações necessárias para responder sua pergunta."
-
-Pergunta: "Quantos clientes temos em 2024?"
-Resposta: "Não tenho informações necessárias para responder sua pergunta."
-
-Pergunta: "Você acha isso bom ou ruim?"
-Resposta: "Não tenho informações necessárias para responder sua pergunta."
-
-PERGUNTA DO USUÁRIO:
-{pergunta do usuário}
-
-RESPONDA A "PERGUNTA DO USUÁRIO"
+```mermaid
+flowchart LR
+    PDF[PDF textual] --> Split[Chunks 1000 / overlap 150]
+    Split --> Emb[OpenAI embeddings]
+    Emb --> DB[(PostgreSQL + pgVector)]
+    Q[Pergunta no terminal] --> R[Busca k=10]
+    DB --> R
+    R --> C[Contexto + prompt obrigatório]
+    C --> L[Modelo de chat]
+    L --> A[Resposta ou recusa]
 ```
 
-## Estrutura obrigatória do projeto
+## Executar
 
-Faça um fork do repositório para utilizar a estrutura abaixo: https://github.com/devfullcycle/mba-ia-desafio-ingestao-busca
+Pré-requisitos: Python 3.12, Docker com Compose, conta OpenAI e acesso aos modelos configurados. A ingestão e as perguntas enviam texto ao provedor e podem gerar cobrança. Não usar documentos confidenciais sem autorização.
 
-```
-├── docker-compose.yml
-├── requirements.txt      # Dependências
-├── .env.example          # Template das variáveis de ambiente
-├── src/
-│   ├── ingest.py         # Script de ingestão do PDF
-│   ├── search.py         # Script de busca
-│   ├── chat.py           # CLI para interação com usuário
-├── document.pdf          # PDF para ingestão
-└── README.md             # Instruções de execução
+```bash
+git clone https://github.com/renandlsantos/mba-esai-2026-ingestao-busca-semantica.git
+cd mba-esai-2026-ingestao-busca-semantica
+git checkout feature/sdd-fase-293
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt -r requirements-dev.txt
+cp .env.example .env
 ```
 
-## VirtualEnv para Python
+Preencha `OPENAI_API_KEY` no `.env` local, sem publicá-la. Modelos iniciais: `text-embedding-3-small` e `gpt-4.1-mini`; altere as variáveis se necessário. O código não carrega credenciais na importação dos módulos.
 
-Crie e ative um ambiente virtual antes de instalar dependências:
-
-```
-python3 -m venv venv
-source venv/bin/activate
-```
-
-## Ordem de execução
-
-1. Subir o banco de dados:
-
-```
-docker compose up -d
-```
-
-2. Executar ingestão do PDF:
-
-```
+```bash
+docker compose up -d --wait
 python src/ingest.py
-```
-
-3. Rodar o chat:
-
-```
 python src/chat.py
 ```
 
-## Entregável
+Exemplo de perguntas para o PDF fornecido no starter:
 
-Repositório público no GitHub contendo todo o código-fonte e README com instruções claras de execução do projeto.
+```text
+PERGUNTA: Qual o faturamento da Empresa SuperTechIABrazil?
+PERGUNTA: Qual é a capital da França?
+PERGUNTA: Quantos clientes temos em 2024?
+PERGUNTA: Você acha isso bom ou ruim?
+```
+
+A primeira pergunta deve mencionar R$ 10.000.000,00, valor presente no PDF. As outras devem retornar exatamente `Não tenho informações necessárias para responder sua pergunta.`. São resultados esperados, **não evidência de execução com modelo real**.
+
+Digite `sair`, `exit`, `quit`, Ctrl-D ou Ctrl-C para encerrar. Linhas vazias são ignoradas. Consulta única: `python src/search.py "sua pergunta"`.
+
+## Configuração
+
+| Variável | Uso |
+|---|---|
+| OPENAI_API_KEY | Chave obrigatória, somente no ambiente local |
+| OPENAI_EMBEDDING_MODEL | Modelo de embeddings |
+| OPENAI_CHAT_MODEL | Modelo de chat |
+| DATABASE_URL | URL SQLAlchemy usando postgresql+psycopg |
+| PG_VECTOR_COLLECTION_NAME | Collection isolada do documento/modelo |
+| PDF_PATH | PDF; caminho relativo à raiz do repositório |
+| POSTGRES_PORT | Porta do Compose; manter igual à DATABASE_URL |
+
+O banco usa porta **55433**, escuta apenas em localhost e volume `mba-esai-293_postgres_data`. O PGVector inicializa a extensão e suas tabelas. Credenciais `postgres/postgres` são somente para esse banco didático local. Para parar preservando dados: `docker compose stop`.
+
+## Ingestão e versões
+
+O splitter configura 1000 caracteres e overlap 150; limites por parágrafo/página podem produzir trechos menores e overlap efetivo menor que 150. IDs usam collection + SHA256 do PDF + índice. Reexecutar o **mesmo** PDF faz upsert e completa cargas interrompidas sem duplicá-las. Metadados preservam página, nome e modelo sem armazenar caminhos absolutos pessoais.
+
+Para **outro PDF ou versão alterada**, escolha nova collection. A aplicação não apaga chunks de versões anteriores. Para **outro modelo de embedding**, use outro banco dedicado: modelos diferentes podem ter dimensões incompatíveis nas tabelas compartilhadas do PGVector. Não apague o volume atual automaticamente; preserve-o e reingira no banco novo.
+
+PDFs escaneados sem camada textual e PDFs criptografados não são suportados; falham explicitamente. Erros não imprimem URL/chave/caminho privado. Confira arquivo e `.env`, depois `docker compose ps` e o acesso ao provedor.
+
+## Testar
+
+```bash
+python -m pytest -q
+ruff check src tests scripts
+RUN_DB_TESTS=1 python -m pytest tests/test_pgvector.py -q
+```
+
+O teste de banco usa PostgreSQL/pgVector real e **embeddings determinísticos de teste**; cria uma collection com UUID e remove somente essa collection no final. Ele prova persistência, upsert e top-k, não qualidade semântica de uma LLM. `TEST_DATABASE_URL` permite apontar para outro banco exclusivo de testes.
+
+Após configurar chave e ingerir o PDF original, a avaliação real é explícita:
+
+```bash
+python scripts/evaluate_live.py > avaliacao-local.json
+```
+
+Revise as quatro respostas. O script retorna 1 se a checagem textual detectar falha, mas o retorno 0 também exige revisão humana: ele apenas verifica valor esperado/recusa e não prova ausência de outras afirmações incorretas. Revise o JSON antes de publicá-lo; registre resultados e modelo em `docs/VALIDACAO.md`.
+
+## Limites e entrega
+
+Top-k fornece candidatos, não garantia de evidência. O prompt obrigatório é preservado e documentos são tratados como dados. Contexto vazio recusa sem chamar o modelo. Nenhum mecanismo promete eliminação absoluta de alucinações ou prompt injection; os testes reais de aceitação são necessários antes da entrega.
+
+Estrutura obrigatória preservada: `docker-compose.yml`, `requirements.txt`, `.env.example`, `src/ingest.py`, `src/search.py`, `src/chat.py`, `document.pdf`, `README.md`. Origem: [starter Full Cycle](https://github.com/devfullcycle/mba-ia-desafio-ingestao-busca). A entrega final é a URL HTTPS do repositório público, após revisão, merge autorizado e validação real; nenhuma submissão automática foi realizada.
