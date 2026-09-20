@@ -1,5 +1,8 @@
 # MBA ESAI 2026 — Ingestão e busca semântica
 
+**Preferência do autor:** modelos locais no Spark. Geração com `spark/code` e embeddings com `spark/embed`; configuração e credencial externa conforme a seção Spark abaixo.
+
+
 Implementação da fase 293: PDF → chunks → embeddings → PostgreSQL/pgVector → perguntas no terminal com LangChain.
 
 **Estado:** código, banco e quatro casos de aceitação com Spark real validados em 20/09/2026 (spark/code + spark/embed). A execução com OpenAI não foi realizada; o desafio não fixa modelo. Não foi submetido à plataforma. O desenvolvimento está na branch `feature/sdd-fase-293`.
