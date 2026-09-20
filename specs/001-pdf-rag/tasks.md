@@ -30,7 +30,7 @@ Objetivo/teste independente: duas perguntas, entradas vazias, saída e falha.
 ## Phase 6: Polish
 - [X] T013 [P] Documentar execução, referências de aulas e rastreabilidade em README.md e docs/ (FR-009).
 - [X] T014 Validar testes, Compose, diff e registrar evidência em docs/VALIDACAO.md.
-- [ ] T015 Executar avaliação real e registrar respostas em docs/VALIDACAO.md (SC-004; depende de credencial fornecida pelo operador).
+- [x] T015 Executar avaliação real: Spark spark/code + spark/embed, quatro casos aprovados em 20/09/2026; docs/VALIDACAO.md.
 
 ## Dependencies & Execution Order
 T001→T002→T003/T004→US1→US2→US3→validação. Testes escritos antes do código de cada história. T013 pode ocorrer em paralelo após contratos; US1 e US2 podem usar doubles independentes após T004, porém integração exige ambas. MVP: US1; entrega completa exige US2/US3 e gate real SC-004.
@@ -42,4 +42,12 @@ Entregar primeiro extração e persistência, depois resposta e CLI. Não marcar
 
 Revisão de 2026-09-19: 9 FR, 4 SC, três histórias, cinco princípios e decisões do plano. Um achado HIGH, partial: SC-004/T015 não tem evidência com provedor real; nenhum gap de código identificado. A execução permanece bloqueada por credencial não fornecida, sem resultado simulado.
 
-- [ ] T016 Registrar avaliação real revisada em docs/VALIDACAO.md conforme SC-004 e US2/AC3 (partial; continuidade de T015 após configuração pelo operador).
+- [x] T016 Registrar revisão do coordenador das quatro respostas reais conforme SC-004 e US2/AC3; não equivale a aprovação acadêmica.
+
+
+## Spark local — extensão de 20/09/2026
+
+- [x] T017 Configurar endpoint compatível e credencial externa explícita sem publicar segredos.
+- [x] T018 Validar timeout/token budget, embeddings textuais e regressões de configuração.
+- [x] T019 Ingerir PDF em banco Spark separado com spark/embed (67 trechos, 1024 dimensões).
+- [x] T020 Concluir quatro perguntas com spark/code e revisar evidência de resposta/recusa.

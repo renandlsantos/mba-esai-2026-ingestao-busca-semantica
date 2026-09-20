@@ -64,3 +64,15 @@ PDF criptografado, PDF sem texto, pergunta vazia, banco sem trechos, resposta va
 
 ## Assumptions
 Operação monousuário e PDF textual fornecido no starter. Sem OCR. Modelos e credenciais são responsabilidade do operador. A arquitetura não garante ausência absoluta de alucinação; testes reais são um gate de entrega, não substituídos por mocks. Tecnologias obrigatórias do enunciado são restrições do plano, não escolhas abertas.
+
+
+## Extensão autorizada — Spark local (20/09/2026)
+
+O operador solicitou executar os fluxos reais no router Spark compatível com OpenAI.
+A aplicação deve aceitar base URL configurável, arquivo externo de credenciais explícito,
+timeout de 300s (até 1500 configurável) e orçamento mínimo de resposta 400 tokens.
+O perfil validado usa spark/code e spark/embed. Embeddings são enviados como texto,
+sem tokenização específica da OpenAI, e persistidos em banco separado (1024 dimensões).
+Não copiar chaves ao projeto nem registrar reasoning_content. A avaliação deve identificar
+API compatível e modelos reais, sem atribuir a chamada à OpenAI por usar o mesmo protocolo.
+O aceite é o mesmo: valor do PDF na pergunta coberta e recusa exata nos três demais casos.

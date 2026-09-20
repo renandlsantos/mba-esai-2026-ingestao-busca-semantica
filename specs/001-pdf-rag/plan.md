@@ -34,3 +34,15 @@ Pré e pós-design: I PASS (prompt e empty guard); II PASS (stack/caminhos/parâ
 
 ## Complexity Tracking
 Nenhuma violação. Não acrescentar agente, servidor web ou cache sem requisito.
+
+
+## Extensão Spark
+
+A configuração continua centralizada em Settings. O .env local aponta LLM_ENV_FILE
+para o arquivo externo fornecido pelo operador; dotenv_values usa caminhos explícitos,
+ignora placeholders vazios e não sobrescreve variáveis já configuradas. Uma chave SPARK
+sem endpoint explícito falha antes de construir o cliente, sem fallback para OpenAI. As fábricas recebem base_url, timeout e limite
+de tokens. OpenAIEmbeddings desativa check_embedding_ctx_length para API compatível,
+pois o contrato remoto aceita textos, não IDs do tokenizer OpenAI. Novo projeto Compose
+mba-esai-293-spark e porta 55434 isolam o banco anterior. Os testes de regressão cobrem
+os dois factories, limites de configuração e carga do arquivo externo sem copiar segredos.

@@ -40,7 +40,7 @@ def main():
             json.dumps(
                 {
                     "executed_at": datetime.now(timezone.utc).isoformat(),
-                    "provider": "OpenAI",
+                    "provider": "OpenAI-compatible" if settings.base_url else "OpenAI",
                     "chat_model": settings.chat_model,
                     "embedding_model": settings.embedding_model,
                     "document_sha256": __import__("hashlib")

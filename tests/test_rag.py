@@ -167,3 +167,82 @@ def test_split_overlap_contains_same_characters():
     chunks = chunk_documents([Document(page_content=original)], "abc", "test", "x.pdf", "embed")
     assert chunks[0].page_content[-150:] == chunks[1].page_content[:150]
     assert chunks[1].page_content[-150:] == chunks[2].page_content[:150]
+
+
+def test_spark_configuration_and_factories(monkeypatch):
+    import langchain_openai
+    import langchain_postgres
+    from config import create_model, create_store
+
+    settings = Settings.from_env(
+        {
+            "SPARK_API_KEY": "private-test",
+            "SPARK_BASE_URL": "http://spark.test/v1",
+            "OPENAI_CHAT_MODEL": "spark/code",
+            "OPENAI_EMBEDDING_MODEL": "spark/embed",
+        }
+    )
+    chat, embeddings, pgvector = Mock(), Mock(), Mock()
+    monkeypatch.setattr(langchain_openai, "ChatOpenAI", chat)
+    monkeypatch.setattr(langchain_openai, "OpenAIEmbeddings", embeddings)
+    monkeypatch.setattr(langchain_postgres, "PGVector", pgvector)
+    create_model(settings)
+    create_store(settings)
+    assert chat.call_args.kwargs["base_url"] == "http://spark.test/v1"
+    assert chat.call_args.kwargs["timeout"] == 300
+    assert chat.call_args.kwargs["max_tokens"] == 4096
+    # Compatible servers accept text, not OpenAI tokenizer integer arrays.
+    assert embeddings.call_args.kwargs["check_embedding_ctx_length"] is False
+    assert embeddings.call_args.kwargs["base_url"] == "http://spark.test/v1"
+    assert "private-test" not in repr(settings)
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"OPENAI_BASE_URL": "http://user:secret@spark.test/v1"},
+        {"OPENAI_BASE_URL": "file:///tmp/api"},
+        {"LLM_TIMEOUT_SECONDS": "nan"},
+        {"LLM_MAX_TOKENS": "50"},
+    ],
+)
+def test_reject_unsafe_or_unusable_provider_settings(extra):
+    with pytest.raises(ValueError):
+        Settings.from_env({"OPENAI_API_KEY": "test", **extra})
+
+
+def test_external_credentials_file_is_explicit_and_not_copied(tmp_path, monkeypatch):
+    import config
+
+    external = tmp_path / "credentials.env"
+    external.write_text("SPARK_API_KEY=test-external-key\nSPARK_BASE_URL=http://spark.test/v1\n")
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    for name in ("SPARK_API_KEY", "SPARK_BASE_URL", "OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_API_BASE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("LLM_ENV_FILE", str(external))
+    settings = Settings.from_env()
+    assert settings.api_key == "test-external-key"
+    assert settings.base_url == "http://spark.test/v1"
+    assert not (tmp_path / ".env").exists()
+    assert "SPARK_API_KEY" not in config.os.environ
+    assert "SPARK_BASE_URL" not in config.os.environ
+
+
+def test_spark_key_without_endpoint_cannot_fall_back_to_openai():
+    with pytest.raises(ValueError, match="base URL explícita"):
+        Settings.from_env({"SPARK_API_KEY": "synthetic-spark-key"})
+
+
+def test_blank_local_key_does_not_mask_external_openai_alias(tmp_path, monkeypatch):
+    import config
+    from unittest.mock import patch
+
+    external = tmp_path / "external.env"
+    external.write_text("OPENAI_API_KEY=synthetic-external\nOPENAI_BASE_URL=http://spark.test/v1\n")
+    (tmp_path / ".env").write_text(f"OPENAI_API_KEY=\nLLM_ENV_FILE={external}\n")
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    with patch.dict(config.os.environ, {}, clear=True):
+        settings = Settings.from_env()
+        assert settings.api_key == "synthetic-external"
+        assert settings.base_url == "http://spark.test/v1"
+        assert "OPENAI_API_KEY" not in config.os.environ

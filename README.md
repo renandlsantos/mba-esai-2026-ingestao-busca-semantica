@@ -2,7 +2,7 @@
 
 Implementação da fase 293: PDF → chunks → embeddings → PostgreSQL/pgVector → perguntas no terminal com LangChain.
 
-**Estado:** código implementado e testes locais/banco validados. A avaliação com OpenAI real ainda depende de chave configurada pelo operador. Não foi submetido à plataforma. O desenvolvimento está na branch `feature/sdd-fase-293`.
+**Estado:** código, banco e quatro casos de aceitação com Spark real validados em 20/09/2026 (spark/code + spark/embed). A execução com OpenAI não foi realizada; o desafio não fixa modelo. Não foi submetido à plataforma. O desenvolvimento está na branch `feature/sdd-fase-293`.
 
 ## Processo SDD
 
@@ -107,3 +107,42 @@ Revise as quatro respostas. O script retorna 1 se a checagem textual detectar fa
 Top-k fornece candidatos, não garantia de evidência. O prompt obrigatório é preservado e documentos são tratados como dados. Contexto vazio recusa sem chamar o modelo. Nenhum mecanismo promete eliminação absoluta de alucinações ou prompt injection; os testes reais de aceitação são necessários antes da entrega.
 
 Estrutura obrigatória preservada: `docker-compose.yml`, `requirements.txt`, `.env.example`, `src/ingest.py`, `src/search.py`, `src/chat.py`, `document.pdf`, `README.md`. Origem: [starter Full Cycle](https://github.com/devfullcycle/mba-ia-desafio-ingestao-busca). A entrega final é a URL HTTPS do repositório público, após revisão, merge autorizado e validação real; nenhuma submissão automática foi realizada.
+
+
+## Usar servidor local compatível (Spark)
+
+O servidor deve oferecer `/v1/chat/completions` e `/v1/embeddings`. No `.env` local,
+configure os modelos e a referência ao arquivo de credenciais; não copie a chave:
+
+```dotenv
+LLM_ENV_FILE=~/.config/spark/spark-api.env
+OPENAI_CHAT_MODEL=spark/code
+OPENAI_EMBEDDING_MODEL=spark/embed
+LLM_TIMEOUT_SECONDS=300
+LLM_MAX_TOKENS=4096
+COMPOSE_PROJECT_NAME=mba-esai-293-spark
+POSTGRES_PORT=55434
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:55434/rag
+PG_VECTOR_COLLECTION_NAME=mba_esai_293_spark_embed_v1
+PDF_PATH=document.pdf
+```
+
+O arquivo externo usa SPARK_BASE_URL/SPARK_API_KEY ou OPENAI_BASE_URL/OPENAI_API_KEY.
+Prioridade para valores não vazios: ambiente > .env local > arquivo externo.
+Campos vazios de templates não ocultam a credencial externa; nenhum segredo é exportado ao ambiente global.
+SPARK_* tem preferência sobre aliases OPENAI_*; evite misturar configurações de provedores.
+O arquivo externo permanece fora do Git e só é lido quando LLM_ENV_FILE está configurado.
+Timeout pode subir até 1500s; max_tokens aceita 400–32768. O perfil inicial usa spark/code
+(resposta direta) e 4096 tokens. Não confunda compatibilidade da API com o provedor OpenAI.
+
+```bash
+docker compose -p mba-esai-293-spark up -d --wait
+python src/ingest.py
+python scripts/evaluate_live.py
+python src/chat.py
+```
+
+Banco/volume separados preservam os vetores anteriores. `spark/embed` foi observado com
+1024 dimensões. O cliente envia textos para esse endpoint sem tokenizer OpenAI.
+As chamadas passam pelo router; sua observabilidade é administrada pelo operador.
+Nenhum reasoning_content ou segredo é incluído nos relatórios do projeto.
